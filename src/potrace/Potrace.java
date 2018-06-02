@@ -112,25 +112,43 @@ public class Potrace {
         Path Contur = findpath(bm, new IntPoint(x, y));
 
         Xor_Path(bm, Contur);
-        ArrayList PolyPath = new ArrayList();
-        // only area > turdsize is taken
+        ArrayList<Path> PolyPath = new ArrayList<Path>();
 
-        if (Contur.area > turdsize) {
-            plistp.Add(PolyPath);
-            PolyPath.Add(Contur); // Path with index 0 is a conture
+        // only area > turdsize is taken
+        if (Contur.area > Constant.turdsize) {
+            plistp.add(PolyPath);
+            PolyPath.add(Contur); // Path with index 0 is a conture
         }
 
 
-        while (FindNext(bm, ref x, ref y, Contur)) {
+
+
+        Point point;
+        while (true) {
+            point = findNext(bm, x, y, Contur);
+            if (point == null) {
+                break;
+            }
+            x = point.x;
+            y = point.y;
+
+
             Path Hole = findpath(bm, new IntPoint(x, y));
-            //Path Hole = findpath(bm, x, y);
             Xor_Path(bm, Hole);
-            if (Hole.area > turdsize)
 
-                PolyPath.Add(Hole); // Path with index > 0 is a hole,
-            while (FindNext(bm, ref x, ref y, Hole)) // 13.07.12 von if auf while
-                getContur(bm, x, y, plistp);
+            if (Hole.area > Constant.turdsize) {
+                PolyPath.add(Hole); // Path with index > 0 is a hole,
+            }
 
+            while (true) {    // 13.07.12 von if auf while
+                point = findNext(bm, x, y, Hole);
+                if (point == null) {
+                    break;
+                }
+                x = point.x;
+                y = point.y;
+                getContour(bm, x, y, plistp);
+            }
         }
     }
 
@@ -159,6 +177,98 @@ public class Potrace {
 
         return null;
 
+    }
+
+
+    /**
+     * Searches a x and a y inside the Path P such that source[x,y] = true and source[x+1,y] false.
+     * If this not exists, false will be returned else the result is true.
+     *
+     * @param Matrix a Binary Matrix
+     * @param x      x index in the source Matrix
+     * @param y      y index in the source Matrix
+     * @param P
+     * @return
+     */
+    private static Point findNext(boolean[][] Matrix, int x, int y, Path P) {
+
+        int i = 0;
+        int n = P.pt.length;
+        ArrayList<MonotonInterval> MonotonIntervals = P.MonotonIntervals;
+        if (MonotonIntervals.size() == 0) {
+            return null;
+        }
+
+        MonotonInterval MI = MonotonIntervals.get(0);
+        MI.ResetCurrentID(n);
+        y = P.pt[MI.CurrentID].Y;
+        ArrayList<MonotonInterval> CurrentIntervals = new ArrayList<MonotonInterval>();
+        CurrentIntervals.add(MI);
+        MI.CurrentID = MI.Min();
+
+        while (i + 1 < MonotonIntervals.size()
+                && (MonotonIntervals.get(i + 1)).MinY(P.pt) == y) {
+
+            MI = MonotonIntervals.get(i + 1);
+            MI.ResetCurrentID(n);
+            CurrentIntervals.add(MI);
+            i++;
+        }
+
+        while (CurrentIntervals.size() > 0) {
+
+            for (int k = 0; k < CurrentIntervals.size() - 1; k++) {
+                int x1 = P.pt[(CurrentIntervals.get(k)).CurrentID].X + 1;
+                int x2 = P.pt[(CurrentIntervals.get(k + 1)).CurrentID].X;
+
+                for (x = x1; x <= x2; x++)
+                    if (!Matrix[x][y]) {
+                        x--;
+                        return new Point(x, y);
+                    }
+                k++;
+            }
+
+            y++;
+            for (int j = CurrentIntervals.size() - 1; j >= 0; j--) {
+
+                MonotonInterval M = CurrentIntervals.get(j);
+
+                if (y > M.MaxY(P.pt)) {
+                    CurrentIntervals.remove(j);
+                    continue;
+                }
+                int CID = M.CurrentID;
+                do {
+                    if (M.Increasing) {
+                        CID = Math.mod(CID + 1, n);
+                    } else {
+                        CID = Math.mod(CID - 1, n);
+                    }
+                } while (P.pt[CID].Y < y);
+
+                M.CurrentID = CID;
+            }
+
+            // Add Items of MonotonIntervals with Miny==y
+            while (i + 1 < MonotonIntervals.size() && (MonotonIntervals.get(i + 1)).MinY(P.pt) == y) {
+
+                MonotonInterval NewInt = MonotonIntervals.get(i + 1);
+                int j = 0;
+                // search the correct x-Position
+                int _x = P.pt[NewInt.Min()].X;
+
+                while (j < CurrentIntervals.size()
+                        && (_x > P.pt[(CurrentIntervals.get(j)).CurrentID].X)) {
+                    j++;
+                }
+                CurrentIntervals.add(j, NewInt);
+                NewInt.ResetCurrentID(n);
+                i++;
+            }
+        }
+
+        return null;
     }
 
 
@@ -300,8 +410,7 @@ public class Potrace {
         return new Point(x, y);
     }
 
-
-    private static ArrayList GetMonotonIntervals(IntPoint[] Pts) {
+    private static ArrayList<MonotonInterval> GetMonotonIntervals(IntPoint[] Pts) {
 
         ArrayList<MonotonInterval> result = new ArrayList<MonotonInterval>();
 
@@ -363,6 +472,84 @@ public class Potrace {
             L.remove(0);
         }
         return result;
+    }
+
+    private static void Xor_Path(boolean[][] Matrix, Path P) {
+
+        int i = 0;
+        int n = P.pt.length;
+
+        ArrayList<MonotonInterval> MonotonIntervals = P.MonotonIntervals;
+        if (MonotonIntervals.size() == 0) {
+            return;
+        }
+        MonotonInterval MI = MonotonIntervals.get(0);
+        MI.ResetCurrentID(n);
+
+        int y = P.pt[MI.CurrentID].Y;
+        ArrayList<MonotonInterval> CurrentIntervals = new ArrayList<MonotonInterval>();
+        CurrentIntervals.add(MI);
+        MI.CurrentID = MI.Min();
+
+        while (i + 1 < MonotonIntervals.size()
+                && (MonotonIntervals.get(i + 1)).MinY(P.pt) == y) {
+            MI = MonotonIntervals.get(i + 1);
+            MI.ResetCurrentID(n);
+            CurrentIntervals.add(MI);
+            i++;
+        }
+
+        while (CurrentIntervals.size() > 0) {   // invertLine
+
+            for (int k = 0; k < CurrentIntervals.size() - 1; k++) {
+
+                int x1 = P.pt[(CurrentIntervals.get(k)).CurrentID].X + 1;
+                int x2 = P.pt[(CurrentIntervals.get(k + 1)).CurrentID].X;
+
+                for (int x = x1; x <= x2; x++) {
+                    Matrix[x][y] = !Matrix[x][y];
+                }
+                k++;
+            }
+
+            y++;
+            for (int j = CurrentIntervals.size() - 1; j >= 0; j--) {
+
+                MonotonInterval M = CurrentIntervals.get(j);
+
+                if (y > M.MaxY(P.pt)) {
+                    CurrentIntervals.remove(j);
+                    continue;
+                }
+                int CID = M.CurrentID;
+                do {
+                    if (M.Increasing)
+                        CID = Math.mod(CID + 1, n);
+                    else
+                        CID = Math.mod(CID - 1, n);
+                } while (P.pt[CID].Y < y);
+
+                M.CurrentID = CID;
+            }
+
+            // Add Items of MonotonIntervals with Down.y==y
+            while (i + 1 < MonotonIntervals.size()
+                    && (MonotonIntervals.get(i + 1)).MinY(P.pt) == y) {
+
+                MonotonInterval NewInt = MonotonIntervals.get(i + 1);
+                int j = 0;
+
+                // search the correct x-Position
+                int _x = P.pt[NewInt.Min()].X;
+                while (j < CurrentIntervals.size()
+                        && _x > P.pt[(CurrentIntervals.get(j)).CurrentID].X) {
+                    j++;
+                }
+                CurrentIntervals.add(j, NewInt);
+                NewInt.ResetCurrentID(n);
+                i++;
+            }
+        }
     }
 
     //Below is for test

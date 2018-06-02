@@ -5,7 +5,7 @@ import java.util.ArrayList;
 public class Path {
 
     public int area;
-    public ArrayList MonotonIntervals;
+    public ArrayList<MonotonInterval> MonotonIntervals;
     public IntPoint[] pt;
     public int[] Lon;
     public SumStruct[] Sums;
