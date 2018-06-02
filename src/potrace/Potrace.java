@@ -107,29 +107,29 @@ public class Potrace {
 
     private static void getContour(boolean[][] bm, Integer x, Integer y, ArrayList plistp) {
 
-        Path Contur = findpath( bm, new IntPoint( x, y ) );
+        // to be written
 
-        Xor_Path( bm, Contur );
+        Path Contur = findpath(bm, new IntPoint(x, y));
+
+        Xor_Path(bm, Contur);
         ArrayList PolyPath = new ArrayList();
         // only area > turdsize is taken
 
-        if( Contur.area > turdsize )
-        {
-            plistp.Add( PolyPath );
-            PolyPath.Add( Contur ); // Path with index 0 is a conture
+        if (Contur.area > turdsize) {
+            plistp.Add(PolyPath);
+            PolyPath.Add(Contur); // Path with index 0 is a conture
         }
 
 
-        while( FindNext( bm, ref x, ref y, Contur ) )
-        {
-            Path Hole = findpath( bm, new IntPoint( x, y ) );
+        while (FindNext(bm, ref x, ref y, Contur)) {
+            Path Hole = findpath(bm, new IntPoint(x, y));
             //Path Hole = findpath(bm, x, y);
-            Xor_Path( bm, Hole );
-            if( Hole.area > turdsize )
+            Xor_Path(bm, Hole);
+            if (Hole.area > turdsize)
 
-                PolyPath.Add( Hole ); // Path with index > 0 is a hole,
-            while( FindNext( bm, ref x, ref y, Hole ) ) // 13.07.12 von if auf while
-                getContur( bm, x, y, plistp );
+                PolyPath.Add(Hole); // Path with index > 0 is a hole,
+            while (FindNext(bm, ref x, ref y, Hole)) // 13.07.12 von if auf while
+                getContur(bm, x, y, plistp);
 
         }
     }
@@ -168,6 +168,201 @@ public class Potrace {
 
     private static void PathList_to_ListOfCurveArrays(ArrayList plistp, ArrayList ListOfCurveArrays) {
 
+    }
+
+    /**
+     * Compute a path in the binary matrix.
+     * Start path at the point (x0,x1), which must be an upper left corner
+     * of the path. Also compute the area enclosed by the path. Return a
+     * new path_t object, or NULL on error (note that a legitimate path
+     * cannot have length 0).
+     * We omit turnpolicies and sign
+     *
+     * @param Matrix Binary Matrix
+     * @param Start  start searching point
+     * @return
+     */
+    private static Path findpath(boolean[][] Matrix, IntPoint Start) {
+
+        ArrayList<IntPoint> L = new ArrayList<IntPoint>();
+
+        Direction Dir = Direction.North;
+        int x;
+        int y;
+        int area = 0;
+        int diry = -1;
+        x = Start.X;
+        y = Start.Y;
+
+        do {
+            L.add(new IntPoint(x, y));
+            int _y = y;
+            Point point = findNextTrace(Matrix, x, y, Dir);
+            x = point.x;
+            y = point.y;
+            diry = _y - y;
+            area += x * diry;
+        } while ((x != Start.X) || (y != Start.Y));
+
+        if (L.size() == 0) {
+            return null;
+        }
+
+        Path result = new Path();
+        result.pt = new IntPoint[L.size()];
+        result.area = area;
+
+        for (int i = 0; i < L.size(); i++) {
+            result.pt[i] = L.get(i);
+        }
+
+        // Shift 1 to be compatible with Potrace
+        if (result.pt.length > 0) {
+            IntPoint P = result.pt[result.pt.length - 1];
+            for (int i = result.pt.length - 1; i >= 0; i--) {
+                if (i > 0) {
+                    result.pt[i] = result.pt[i - 1];
+                } else {
+                    result.pt[0] = P;
+                }
+            }
+        }
+
+        result.MonotonIntervals = GetMonotonIntervals(result.pt);
+
+        return result;
+    }
+
+
+    /**
+     * @param Matrix
+     * @param x
+     * @param y
+     * @param Dir
+     * @return
+     */
+    private static Point findNextTrace(boolean[][] Matrix, int x, int y, Direction Dir) {
+
+        if (Dir == Direction.West) {
+            if (!Matrix[x + 1][y + 1]) {
+                y++;
+                Dir = Direction.North;
+            } else {
+                if (!Matrix[x + 1][y]) {
+                    x++;
+                    Dir = Direction.West;
+                } else {
+                    y--;
+                    Dir = Direction.South;
+                }
+            }
+        } else if (Dir == Direction.South) {
+            if (!Matrix[x + 1][y]) {
+                x++;
+                Dir = Direction.West;
+            } else {
+                if (!Matrix[x][y]) {
+                    y--;
+                    Dir = Direction.South;
+                } else {
+                    x--;
+                    Dir = Direction.East;
+                }
+            }
+        } else if (Dir == Direction.East) {
+            if (!Matrix[x][y]) {
+                y--;
+                Dir = Direction.South;
+            } else {
+                if (!Matrix[x][y + 1]) {
+                    x--;
+                    Dir = Direction.East;
+                } else {
+                    y++;
+                    Dir = Direction.North;
+                }
+            }
+        } else if (Dir == Direction.North) {
+            if (!Matrix[x][y + 1]) {
+                x--;
+                Dir = Direction.East;
+            } else {
+                if (!Matrix[x + 1][y + 1]) {
+                    y++;
+                    Dir = Direction.North;
+                } else {
+                    x++;
+                    Dir = Direction.West;
+                }
+            }
+        }
+
+        return new Point(x, y);
+    }
+
+
+    private static ArrayList GetMonotonIntervals(IntPoint[] Pts) {
+
+        ArrayList<MonotonInterval> result = new ArrayList<MonotonInterval>();
+
+        int n = Pts.length;
+        if (n == 0) {
+            return result;
+        }
+
+        ArrayList<MonotonInterval> L = new ArrayList<MonotonInterval>();
+
+        //----- Start with Strong Monoton (Pts[i].y < Pts[i+1].y) or (Pts[i].y > Pts[i+1].y)
+        int FirstStrongMonoton = 0;
+        while (Pts[FirstStrongMonoton].Y == Pts[FirstStrongMonoton + 1].Y) {
+            FirstStrongMonoton++;
+        }
+        boolean Up = (Pts[FirstStrongMonoton].Y < Pts[FirstStrongMonoton + 1].Y);
+        MonotonInterval Interval = new MonotonInterval(Up, FirstStrongMonoton, FirstStrongMonoton);
+        L.add(Interval);
+
+        int i = FirstStrongMonoton;
+        do {
+            // Interval.to = i;
+            if ((Pts[i].Y == Pts[Math.mod(i + 1, n)].Y)
+                    || (Up == (Pts[i].Y < Pts[Math.mod(i + 1, n)].Y))) {
+                Interval.to = i;
+            } else {
+                Up = (Pts[i].Y < Pts[Math.mod(i + 1, n)].Y);
+                Interval = new MonotonInterval(Up, i, i);
+                L.add(Interval);
+            }
+            i = Math.mod(i + 1, n);
+        } while (i != FirstStrongMonoton);
+
+        if (L.size() / 2 * 2 != L.size()) {// Connect the Last with first
+            MonotonInterval M0 = L.get(0);
+            MonotonInterval ML = (MonotonInterval) L.get(L.size() - 1);
+            M0.from = ML.from;
+            L.remove(L.size() - 1);
+        }
+
+        //----- order now by the min y - value of interval to result
+        // and as second Key by the x-value
+        //
+        while (L.size() > 0) {
+            MonotonInterval M = L.get(0);
+            i = 0;
+            // order by y-value
+            while ((i < result.size())
+                    && (Pts[M.Min()].Y > Pts[(result.get(i)).Min()].Y)) {
+                i++;
+            }
+            // order by x- value as second Key
+            while (i < result.size()
+                    && Pts[M.Min()].Y == Pts[(result.get(i)).Min()].Y
+                    && (Pts[M.Min()].X > (Pts[(result.get(i)).Min()].X))) {
+                i++;
+            }
+            result.add(i, M);
+            L.remove(0);
+        }
+        return result;
     }
 
     //Below is for test
