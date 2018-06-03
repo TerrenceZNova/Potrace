@@ -3,8 +3,8 @@ package potrace;
 public class Constant {
 
     //----------------------Potrace Constants and aux functions
-    final int POTRACE_CORNER = 1;
-    final int POTRACE_CURVETO = 2;
+    final static int POTRACE_CORNER = 1;
+    final static int POTRACE_CURVETO = 2;
     final static double COS179 = java.lang.Math.cos(179 * java.lang.Math.PI / 180);
 
     //Area of largest path to be ignored.

@@ -9,7 +9,6 @@ public class DoublePoint {
     //x-coordinate
     double X;
 
-
     //y-coordinate
     double Y;
 
