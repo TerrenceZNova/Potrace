@@ -2,11 +2,16 @@ package potrace;
 
 
 import org.opencv.core.Mat;
+import org.opencv.core.MatOfPoint;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
+import org.opencv.core.MatOfPoint;
+
 
 import java.awt.*;
+import java.util.List;
 import java.util.ArrayList;
+import java.util.LinkedList;
 
 
 public class Potrace {
@@ -109,11 +114,14 @@ public class Potrace {
     private static void getContour(boolean[][] bm, Integer x, Integer y,
                                    ArrayList<ArrayList<Path>> plistp) {
 
-        //Step 1
+        //Step 1: Find Path
         Path Contur = findpath(bm, new IntPoint(x, y));
 
-
+        //Step 2:
         Xor_Path(bm, Contur);
+
+        outputMatrix(bm);
+
         ArrayList<Path> PolyPath = new ArrayList<Path>();
 
         // only area > turdsize is taken
@@ -143,7 +151,7 @@ public class Potrace {
             while (true) {    // 13.07.12 von if auf while
                 point = findNext(bm, x, y, Hole);
                 if (point == null) {
-                    return;
+                    break;
                 }
                 x = point.x;
                 y = point.y;
@@ -419,12 +427,13 @@ public class Potrace {
     private static ArrayList<MonotonInterval> GetMonotonIntervals(IntPoint[] Pts) {
 
         ArrayList<MonotonInterval> result = new ArrayList<MonotonInterval>();
-
         int n = Pts.length;
         if (n == 0) {
             return result;
         }
 
+
+        //Step 1: Divide contour into several segments
         ArrayList<MonotonInterval> L = new ArrayList<MonotonInterval>();
 
         //----- Start with Strong Monoton (Pts[i].y < Pts[i+1].y) or (Pts[i].y > Pts[i+1].y)
@@ -439,8 +448,8 @@ public class Potrace {
         int i = FirstStrongMonoton;
         do {
             // Interval.to = i;
-            if ((Pts[i].Y == Pts[Math.mod(i + 1, n)].Y)
-                    || (Up == (Pts[i].Y < Pts[Math.mod(i + 1, n)].Y))) {
+            if (Pts[i].Y == Pts[Math.mod(i + 1, n)].Y
+                    || Up == (Pts[i].Y < Pts[Math.mod(i + 1, n)].Y)) {
                 Interval.to = i;
             } else {
                 Up = (Pts[i].Y < Pts[Math.mod(i + 1, n)].Y);
@@ -450,12 +459,18 @@ public class Potrace {
             i = Math.mod(i + 1, n);
         } while (i != FirstStrongMonoton);
 
+
+        //Step 2: Make the number of segments even
         if (L.size() / 2 * 2 != L.size()) {// Connect the Last with first
             MonotonInterval M0 = L.get(0);
-            MonotonInterval ML = (MonotonInterval) L.get(L.size() - 1);
+            MonotonInterval ML = L.get(L.size() - 1);
             M0.from = ML.from;
             L.remove(L.size() - 1);
         }
+
+
+        //Step 3: Order the segments by y-value(first-key) and x-value(second-key)
+        //where the segment with lowest x-value and y-value ranks first
 
         //----- order now by the min y - value of interval to result
         // and as second Key by the x-value
@@ -464,8 +479,8 @@ public class Potrace {
             MonotonInterval M = L.get(0);
             i = 0;
             // order by y-value
-            while ((i < result.size())
-                    && (Pts[M.Min()].Y > Pts[(result.get(i)).Min()].Y)) {
+            while (i < result.size()
+                    && Pts[M.Min()].Y > Pts[(result.get(i)).Min()].Y) {
                 i++;
             }
             // order by x- value as second Key
@@ -498,7 +513,7 @@ public class Potrace {
         MI.CurrentID = MI.Min();
 
         while (i + 1 < MonotonIntervals.size()
-                && (MonotonIntervals.get(i + 1)).MinY(P.pt) == y) {
+                && MonotonIntervals.get(i + 1).MinY(P.pt) == y) {
             MI = MonotonIntervals.get(i + 1);
             MI.ResetCurrentID(n);
             CurrentIntervals.add(MI);
@@ -573,9 +588,37 @@ public class Potrace {
         Mat srcImage = Imgcodecs.imread(filePath);
         boolean[][] result = bitmapToBinary(srcImage);
 
-        for (int i = 0; i < result.length; i++) {
-            for (int j = 0; j < result[i].length; j++) {
-                if (result[i][j]) {
+        outputMatrix(result);
+    }
+
+    private static void testBm_to_pathlist() {
+
+        String filePath = "E:\\Java_Projects\\Potrace\\resources\\sourceEntireImages\\11a.png";
+        Mat srcImage = Imgcodecs.imread(filePath);
+
+
+        boolean[][] matrix = bitmapToBinary(srcImage);
+
+        outputMatrix(matrix);
+
+        ArrayList<ArrayList<Path>> ListOfCurveArray = new ArrayList<>();
+        bm_to_pathlist(matrix, ListOfCurveArray);
+
+        System.out.println();
+    }
+
+
+    /**
+     * Output the given binary matrix in 0/1 form
+     *
+     * @param matrix
+     */
+    private static void outputMatrix(boolean[][] matrix) {
+
+        for (int row = 0; row < matrix.length; row++) {
+            for (int col = 0; col < matrix[row].length; col++) {
+
+                if (matrix[row][col]) {
                     System.out.print(0);
                 } else {
                     System.out.print(1);
@@ -583,15 +626,8 @@ public class Potrace {
             }
             System.out.println();
         }
-    }
 
-    private static void testBm_to_pathlist() {
-
-        String filePath = "E:\\Java_Projects\\Potrace\\resources\\sourceEntireImages\\9a.png";
-        Mat srcImage = Imgcodecs.imread(filePath);
-        boolean[][] matrix = bitmapToBinary(srcImage);
-
-        ArrayList<ArrayList<Path>> ListOfCurveArray = new ArrayList<>();
-        bm_to_pathlist(matrix, ListOfCurveArray);
+        System.out.println();
+        System.out.println();
     }
 }
