@@ -89,38 +89,38 @@ public class Potrace {
      * @param bm     A binary bitmap which holds the imageinformations.
      * @param plistp List of Path objects
      */
-    private static void bm_to_pathlist(boolean[][] bm, ArrayList plistp) {
+    private static void bm_to_pathlist(boolean[][] bm, ArrayList<ArrayList<Path>> plistp) {
 
         Integer x = 0, y = 0;
-        Point temp;
+        Point point;
 
         while (true) {
-            temp = findNext(bm, x, y);
-            if (temp == null) {
+            point = findNext(bm, x, y);
+            if (point == null) {
                 break;
             } else {
-                getContour(bm, temp.x, temp.y, plistp);
+                getContour(bm, point.x, point.y, plistp);
             }
         }
 
     }
 
-    private static void getContour(boolean[][] bm, Integer x, Integer y, ArrayList plistp) {
 
-        // to be written
+    private static void getContour(boolean[][] bm, Integer x, Integer y,
+                                   ArrayList<ArrayList<Path>> plistp) {
 
+        //Step 1
         Path Contur = findpath(bm, new IntPoint(x, y));
+
 
         Xor_Path(bm, Contur);
         ArrayList<Path> PolyPath = new ArrayList<Path>();
 
         // only area > turdsize is taken
         if (Contur.area > Constant.turdsize) {
-            plistp.add(PolyPath);
             PolyPath.add(Contur); // Path with index 0 is a conture
+            plistp.add(PolyPath);
         }
-
-
 
 
         Point point;
@@ -143,7 +143,7 @@ public class Potrace {
             while (true) {    // 13.07.12 von if auf while
                 point = findNext(bm, x, y, Hole);
                 if (point == null) {
-                    break;
+                    return;
                 }
                 x = point.x;
                 y = point.y;
@@ -164,7 +164,7 @@ public class Potrace {
      */
     private static Point findNext(boolean[][] bm, Integer x, Integer y) {
 
-        for (int col = 1; col < bm.length - 1; col++) {
+        for (int col = 1; col < bm[0].length - 1; col++) {
             for (int row = 0; row < bm.length - 1; row++) {
                 // black found
                 if (!bm[row + 1][col]) {
@@ -307,9 +307,10 @@ public class Potrace {
         do {
             L.add(new IntPoint(x, y));
             int _y = y;
-            Point point = findNextTrace(Matrix, x, y, Dir);
-            x = point.x;
-            y = point.y;
+            int[] result = findNextTrace(Matrix, x, y, Dir);
+            x = result[0];
+            y = result[1];
+            Dir = Direction.valueOf(Direction.getName(result[2]));
             diry = _y - y;
             area += x * diry;
         } while ((x != Start.X) || (y != Start.Y));
@@ -351,7 +352,7 @@ public class Potrace {
      * @param Dir
      * @return
      */
-    private static Point findNextTrace(boolean[][] Matrix, int x, int y, Direction Dir) {
+    private static int[] findNextTrace(boolean[][] Matrix, int x, int y, Direction Dir) {
 
         if (Dir == Direction.West) {
             if (!Matrix[x + 1][y + 1]) {
@@ -407,7 +408,12 @@ public class Potrace {
             }
         }
 
-        return new Point(x, y);
+        int[] result = new int[3];
+        result[0] = x;
+        result[1] = y;
+        result[2] = Dir.getValue();
+
+        return result;
     }
 
     private static ArrayList<MonotonInterval> GetMonotonIntervals(IntPoint[] Pts) {
@@ -558,7 +564,7 @@ public class Potrace {
         String dllPath = "C:\\OpenCV\\opencv\\build\\java\\x64\\opencv_java320.dll";
         System.load(dllPath);
 
-        testBitmapToBinary();
+        testBm_to_pathlist();
     }
 
     private static void testBitmapToBinary() {
@@ -577,5 +583,15 @@ public class Potrace {
             }
             System.out.println();
         }
+    }
+
+    private static void testBm_to_pathlist() {
+
+        String filePath = "E:\\Java_Projects\\Potrace\\resources\\sourceEntireImages\\9a.png";
+        Mat srcImage = Imgcodecs.imread(filePath);
+        boolean[][] matrix = bitmapToBinary(srcImage);
+
+        ArrayList<ArrayList<Path>> ListOfCurveArray = new ArrayList<>();
+        bm_to_pathlist(matrix, ListOfCurveArray);
     }
 }
