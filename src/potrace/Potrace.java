@@ -128,7 +128,7 @@ public class Potrace {
         //Step 2:
         Xor_Path(bm, Contur);
 
-        outputMatrix(bm);
+        //outputMatrix(bm);
 
         ArrayList<Path> PolyPath = new ArrayList<Path>();
 
@@ -333,9 +333,20 @@ public class Potrace {
         int y0 = pp.pt[0].Y;
 
         // preparatory computation for later fast summing
-        //pp->sums[0].x2 = pp->sums[0].xy = pp->sums[0].y2 = pp->sums[0].x = pp->sums[0].y = 0;
-        pp.Sums[0].X2 = pp.Sums[0].XY = pp.Sums[0].Y2 = pp.Sums[0].X = pp.Sums[0].Y = 0;
+        //pp->sums[0].x2
+        // = pp->sums[0].xy
+        // = pp->sums[0].y2
+        // = pp->sums[0].x
+        // = pp->sums[0].y = 0;
+        pp.Sums[0].X2
+                = pp.Sums[0].XY
+                = pp.Sums[0].Y2
+                = pp.Sums[0].X
+                = pp.Sums[0].Y = 0;
 
+
+        // Calculate the sum of x-distance, y-distance, xy, x^2, y^2 and
+        // store the result in pp.Sums
         for (i = 0; i < n; i++) {
             x = pp.pt[i].X - x0;
             y = pp.pt[i].Y - y0;
@@ -1018,9 +1029,20 @@ public class Potrace {
     }
 
 
-    /* calculate best fit from i+.5 to j+.5.  Assume i<j (cyclically).
-           Return 0 and set badness and parameters (alpha, beta), if
-           possible. Return 1 if impossible. */
+    /**
+     * calculate best fit from i+.5 to j+.5.  Assume i<j (cyclically).
+     * Return 0 and set badness and parameters (alpha, beta), if
+     * possible. Return 1 if impossible.
+     *
+     * @param pp
+     * @param i
+     * @param j
+     * @param res
+     * @param opttolerance
+     * @param convc
+     * @param areac
+     * @return
+     */
     private static boolean opti_penalty(
             Path pp, int i, int j, opti res, double opttolerance, int[] convc, double[] areac) {
 
@@ -1545,7 +1567,7 @@ public class Potrace {
         String dllPath = "C:\\OpenCV\\opencv\\build\\java\\x64\\opencv_java320.dll";
         System.load(dllPath);
 
-        testBm_to_pathlist();
+        testProcess_path();
     }
 
     private static void testBitmapToBinary() {
@@ -1559,9 +1581,8 @@ public class Potrace {
 
     private static void testBm_to_pathlist() {
 
-        String filePath = "E:\\Java_Projects\\Potrace\\resources\\sourceEntireImages\\11a.png";
+        String filePath = "E:\\Java_Projects\\Potrace\\resources\\sourceEntireImages\\12a.png";
         Mat srcImage = Imgcodecs.imread(filePath);
-
 
         boolean[][] matrix = bitmapToBinary(srcImage);
 
@@ -1569,6 +1590,23 @@ public class Potrace {
 
         ArrayList<ArrayList<Path>> ListOfCurveArray = new ArrayList<>();
         bm_to_pathlist(matrix, ListOfCurveArray);
+
+        System.out.println();
+    }
+
+    private static void testProcess_path() {
+
+        String filePath = "E:\\Java_Projects\\Potrace\\resources\\sourceEntireImages\\12a.png";
+        Mat srcImage = Imgcodecs.imread(filePath);
+
+        boolean[][] matrix = bitmapToBinary(srcImage);
+
+        outputMatrix(matrix);
+
+        ArrayList<ArrayList<Path>> ListOfCurveArray = new ArrayList<>();
+        bm_to_pathlist(matrix, ListOfCurveArray);
+
+        process_path(ListOfCurveArray);
 
         System.out.println();
     }
