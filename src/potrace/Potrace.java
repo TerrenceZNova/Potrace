@@ -299,11 +299,17 @@ public class Potrace {
 
             for (int i = 0; i < plist.size(); i++) {
                 p = plist.get(i);
+
                 calc_sums(p);
+
                 calc_lon(p);
+
                 BestPolygon(p);
+
                 AdjustVertices(p);
+
                 smooth(p.Curves, 1, Constant.alphamax);
+
                 if (Constant.curveoptimizing) {
                     opticurve(p, Constant.opttolerance);
                     p.FCurves = p.OptimizedCurves;
@@ -326,7 +332,11 @@ public class Potrace {
 
         int i, x, y;
         int n = pp.pt.length;
+
         pp.Sums = new SumStruct[n + 1];
+        for (int j = 0; j < pp.Sums.length; j++) {
+            pp.Sums[j] = new SumStruct();
+        }
 
         // origin
         int x0 = pp.pt[0].X;
@@ -338,11 +348,11 @@ public class Potrace {
         // = pp->sums[0].y2
         // = pp->sums[0].x
         // = pp->sums[0].y = 0;
-        pp.Sums[0].X2
-                = pp.Sums[0].XY
-                = pp.Sums[0].Y2
-                = pp.Sums[0].X
-                = pp.Sums[0].Y = 0;
+        pp.Sums[0].X2 = 0;
+        pp.Sums[0].XY = 0;
+        pp.Sums[0].Y2 = 0;
+        pp.Sums[0].X = 0;
+        pp.Sums[0].Y = 0;
 
 
         // Calculate the sum of x-distance, y-distance, xy, x^2, y^2 and
@@ -356,7 +366,10 @@ public class Potrace {
             pp.Sums[i + 1].XY = pp.Sums[i].XY + x * y;
             pp.Sums[i + 1].Y2 = pp.Sums[i].Y2 + y * y;
         }
+
+        System.out.println();
     }
+
 
     private static void calc_lon(Path pp) {
 
@@ -383,6 +396,8 @@ public class Potrace {
            in practice, correctness does not depend on the word "furthest"
            above.  */
 
+        // nc[i] stores the furthest point index on path so that nc[i] and i
+        // can be connected vertically or horizontally
         k = 0;
         for (i = n - 1; i >= 0; i--) {
             if (pt[i].X != pt[k].X && pt[i].Y != pt[k].Y) {
@@ -402,20 +417,34 @@ public class Potrace {
             ct[0] = ct[1] = ct[2] = ct[3] = 0;
 
             /* keep track of "directions" that have occurred */
-            dir = (3 + 3 * (pt[Math.mod(i + 1, n)].X - pt[i].X)
-                    + (pt[Math.mod(i + 1, n)].Y - pt[i].Y)) / 2;
+
+            /* Note that the possible value of dir is 0,1,2 and 3 because
+               abs(x2-x1) = 1 && abs(y2-y1) = 0
+               or abs(x2-x1) = 0 && abs(y2-y1) = 1
+               according to the path searching algorithm*/
+            dir = (
+                    3 + 3 * (pt[Math.mod(i + 1, n)].X - pt[i].X) + (pt[Math.mod(i + 1, n)].Y - pt[i].Y)
+            ) / 2;
+
             ct[dir]++;
 
+            constraint[0] = new IntPoint(0, 0);
+            constraint[1] = new IntPoint(0, 0);
 
             /* find the next k such that no straight line from i to k */
             k = nc[i];
             k1 = i;
+
             while (true) {
-                dir = (3 + 3 * Math.sign(pt[k].X - pt[k1].X) + Math.sign(pt[k].Y - pt[k1].Y)) / 2;
+                dir = (3 +
+                        3 * Math.sign(pt[k].X - pt[k1].X)
+                        + Math.sign(pt[k].Y - pt[k1].Y)) / 2;
+
                 ct[dir]++;
 
                 /* if all four "directions" have occurred, cut this path */
                 if ((ct[0] == 1) && (ct[1] == 1) && (ct[2] == 1) && (ct[3] == 1)) {
+
                     Pivot[i] = k1;
                     //goto foundk;
                     foundkFlag = true;
@@ -434,21 +463,31 @@ public class Potrace {
                 if (Math.abs(cur.X) <= 1 && Math.abs(cur.Y) <= 1) {
                     /* no constraint */
                 } else {
-                    off = new IntPoint(cur.X + ((cur.Y >= 0 && (cur.Y > 0 || cur.X < 0)) ? 1 : -1), cur.Y + ((cur.X <= 0 && (cur.X < 0 || cur.Y < 0)) ? 1 : -1));
+                    off = new IntPoint(
+                            cur.X + ((cur.Y >= 0 && (cur.Y > 0 || cur.X < 0)) ? 1 : -1),
+                            cur.Y + ((cur.X <= 0 && (cur.X < 0 || cur.Y < 0)) ? 1 : -1));
+
                     if (Math.xprod(constraint[0], off) >= 0) {
                         constraint[0] = off;
                     }
-                    off = new IntPoint(cur.X + ((cur.Y <= 0 && (cur.Y < 0 || cur.X < 0)) ? 1 : -1), cur.Y + ((cur.X >= 0 && (cur.X > 0 || cur.Y < 0)) ? 1 : -1));
+
+                    off = new IntPoint(
+                            cur.X + ((cur.Y <= 0 && (cur.Y < 0 || cur.X < 0)) ? 1 : -1),
+                            cur.Y + ((cur.X >= 0 && (cur.X > 0 || cur.Y < 0)) ? 1 : -1));
+
                     if (Math.xprod(constraint[1], off) <= 0) {
                         constraint[1] = off;
                     }
                 }
+
                 k1 = k;
                 k = nc[k1];
+
                 if (!Math.cyclic(k, i, k1)) {
                     break;
                 }
             }
+
             if (foundkFlag) {
                 continue;
             }
@@ -1596,7 +1635,7 @@ public class Potrace {
 
     private static void testProcess_path() {
 
-        String filePath = "E:\\Java_Projects\\Potrace\\resources\\sourceEntireImages\\12a.png";
+        String filePath = "E:\\Java_Projects\\Potrace\\resources\\sourceEntireImages\\13a.png";
         Mat srcImage = Imgcodecs.imread(filePath);
 
         boolean[][] matrix = bitmapToBinary(srcImage);

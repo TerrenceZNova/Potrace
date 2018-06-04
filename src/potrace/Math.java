@@ -36,13 +36,15 @@ class Math {
     }
 
 
-    /* calculate p1 x p2 */
+    /* calculate the cross-product: p1 x p2 */
     static int xprod(IntPoint p1, IntPoint p2) {
+
         return p1.X * p2.Y - p1.Y * p2.X;
     }
 
-    /* calculate p1 x p2 */
+    /* calculate the cross-product: p1 x p2 */
     static double xprod(DoublePoint p1, DoublePoint p2) {
+
         return p1.X * p2.Y - p1.Y * p2.X;
     }
 
